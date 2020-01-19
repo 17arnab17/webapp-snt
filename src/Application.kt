@@ -29,13 +29,17 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.apache.http.HttpRequestInterceptor
 import java.io.IOException
 import java.lang.Exception
 import java.sql.Timestamp
 import java.nio.file.Files
+import java.security.Security
+import java.util.regex.Matcher
 
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
+
 }
 
 // These are create statements to initialise the database. They will not do anything if the database already exists.
@@ -101,11 +105,14 @@ fun initDb() : Connection? {
 
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
+
+
 fun Application.module(testing: Boolean = false) {
     // Set up a connection to the database
     val conn = if (testing) null else initDb()
     
     Files.createDirectories((File(storageDir)).toPath())
+
 
     // Set up templating
     install(Thymeleaf) {
@@ -126,6 +133,14 @@ fun Application.module(testing: Boolean = false) {
             minimumSize(1024) // condition
         }
     }
+    // Adding headers to make the site more secure
+    install(DefaultHeaders) {
+        header("X-Content-Type-Options", "nosniff")
+        header("X-Developer", "Arnab Chattopadhyay")
+        header("X-XSS-Protection", "1")
+        header("X-Frame-Options", "sameorigin")
+    }
+
 
     // Set up XML wrapping for metadata format
     val xmlMapper = XmlMapper(JacksonXmlModule().apply {
@@ -165,22 +180,51 @@ fun Application.module(testing: Boolean = false) {
             call.respond(ThymeleafContent("upload", mapOf()))
         }
 
+
         // This is the details page for a single image. See resources/templates.thymeleaf/image.html
         get("/image/{imageId}") {
             // Get the image ID from the URL
+            /*fun anImageFile() = object: Matcher<File> {
+                override fun test(value:File): Result{
+
+                }
+            }
+
+            val anImageFile = object :Matcher{
+                private val suffixes = setOf("jpeg","jpg","gif")
+                override fun test(value:File) : Result {
+                    val fileExists = value.exists()
+                    val hasImageSuffix = suffixes.any {
+                        value.name.toLowerCase().endsWith(it)
+                    }
+                    if(!hasImageSuffix){
+                        return Result(false)
+                    }
+                    return Result(true)
+                }
+            }
+*/
+
             val imageId = call.parameters["imageId"]?.toInt()
 
             if (imageId == null) {
                 call.respond(HttpStatusCode.NotFound)
             } else {
                 // Query the database for the image
-                val image = Image.fromQuery(conn!!.prepareStatement("SELECT * FROM images WHERE id = $imageId").executeQuery())
+                val image =
+                    Image.fromQuery(conn!!.prepareStatement("SELECT * FROM images WHERE id = $imageId").executeQuery())
+                if (image.title == null) {
+                    call.respond(HttpStatusCode.NotFound)
+                }
+                //val pathOfImage = "/image/{imageId}"
 
                 // Query the database for a list of comments
-                val comments = Comment.fromQuery(conn.prepareStatement("SELECT * FROM comments WHERE image_id = $imageId").executeQuery())
+                val comments =
+                    Comment.fromQuery(conn.prepareStatement("SELECT * FROM comments WHERE image_id = $imageId").executeQuery())
 
                 // Query the database for image metadata that might have been uploaded
-                val meta = MetaData.fromQuery(conn.prepareStatement("SELECT * FROM metadata WHERE image_id = $imageId").executeQuery())
+                val meta =
+                    MetaData.fromQuery(conn.prepareStatement("SELECT * FROM metadata WHERE image_id = $imageId").executeQuery())
 
                 // Store all data into a map
                 val context = mutableMapOf("image" to image, "comments" to comments)
@@ -193,6 +237,7 @@ fun Application.module(testing: Boolean = false) {
                 // Render the result
                 call.respond(ThymeleafContent("image", context))
             }
+
         }
 
         // This is the handler for posting a new comment
@@ -224,7 +269,7 @@ fun Application.module(testing: Boolean = false) {
             val filename : String? = call.parameters["filename"]
 
             // Return a 404 when the file does not exist
-            if (filename == null) {
+            if (filename == null || filename.endsWith(".txt")) {
                 call.respond(HttpStatusCode.NotFound)
             }
 

@@ -78,11 +78,13 @@
     <form method="post" th:action="'/image/' + ${image.id} + '/comments/post'">
         <div class="form-group">
             <label for="userName">Username</label>
-            <input type="text" class="form-control form-control-plaintext" placeholder="Your name" name="userName" id="userName">
+            <input type="text" pattern="[A-Za-z0-9]+" class="form-control form-control-plaintext"
+                   placeholder="Your name" name="userName" id="userName">
         </div>
         <div class="form-group">
             <label for="comment">Comment</label>
-            <input type="text" class="form-control form-control-plaintext" placeholder="Your comment" name="comment" id="comment" />
+            <input type="text" pattern="[A-Za-z0-9]+" class="form-control form-control-plaintext"
+                   placeholder="Your comment" name="comment" id="comment"/>
         </div>
 
         <input type="submit" class="btn btn-primary" value="Comment" />

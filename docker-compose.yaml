@@ -17,3 +17,5 @@ services:
      - POSTGRES_USER=user
      - POSTGRES_PASSWORD=testing-password
      - POSTGRES_DB=production
+
+

@@ -10,7 +10,9 @@
 <nav th:insert="~{navigation :: navbar}"></nav>
 <div class="container">
     <div class="row">
-        <h1 class="col-12">You searched for: <span th:utext="${query} ?: ''"></span></h1>
+        <h1 class="col-12">You searched for: <span th:utext="${query} ?: ''"
+                                                   th:pattern="${^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/}"></span>
+        </h1>
         <p class="col-12">Found <span th:utext="${#lists.size(results)}">0</span> results</p>
     </div>
     <div class="row">
